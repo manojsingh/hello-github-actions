@@ -1,0 +1,58 @@
+trigger: none
+pr: none
+
+stages:
+- stage: buildStage
+  jobs:
+  - job: buildJob
+    pool: BUILD-LINUX
+    steps:
+    - script: echo "Hello Build"
+    # https://learn.microsoft.com/en-us/azure/devops/pipelines/process/set-variables-scripts?view=azure-devops&tabs=bash#set-an-output-variable-for-use-in-future-stages
+    - script: echo "##vso[task.setvariable variable=buildJobVar;isOutput=true]fromBuildStage"
+      name: buildJobStep # you must set the name of a task for reference in future stages via dependencies
+    - script: echo $(buildJobVar) # this will not work since you cannot echo output job variables immediately after
+
+- stage: integrationStage
+  # condition must use "dependencies" with a different convention from expressions in variables
+  condition: and(succeeded(), eq(dependencies.buildStage.outputs['buildJob.buildJobStep.buildJobVar'], 'fromBuildStage'))
+  jobs:
+  - deployment: integrationJob
+    pool: DEPLOY-TEST
+    environment: nonprod
+    variables:
+      # you must use expressions to connect the variables on the job level before referencing in your script. Notice "stageDependencies" vs "dependencies"
+      myBuildStageVar: $[stageDependencies.buildStage.buildJob.outputs['buildJobStep.buildJobVar']]
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: echo "Hello Integration Deploy"
+            name: hello
+          - script: echo $(myBuildStageVar)
+            name: buildStageVar
+          - script: echo "##vso[task.setvariable variable=deployJobVar;isOutput=true]fromIntegrationStage"
+            name: deployJobStep
+
+- stage: prodStage
+  # referencing variables from a deployment job vs a regular build job is different... for some reason the output has to repeat the job name (i.e. integrationJob)
+  # https://learn.microsoft.com/en-us/azure/devops/pipelines/process/expressions?view=azure-devops#stage-depending-on-job-output
+  condition: and(succeeded(), eq(dependencies.integrationStage.outputs['integrationJob.integrationJob.deployJobStep.deployJobVar'], 'fromIntegrationStage'))
+  # dependsOn: integrationStage explicit dependsOn is not necessary, implicit works too (as long as your sure it comes after)
+  jobs:
+  - deployment: prodJob
+    pool: DEPLOY-PROD
+    environment: nonprod
+    variables:
+      myBuildStageVar: $[stageDependencies.buildStage.buildJob.outputs['buildJobStep.buildJobVar']] # not available since its not a direct dependency
+      myDeployStageVar: $[stageDependencies.integrationStage.integrationJob.outputs['deployJobStep.deployJobVar']] # not available for some reason from deployment jobs? why?
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: echo "Hello Prod Deploy"
+            name: hello
+          - script: echo $(myBuildStageVar) # no output
+            name: buildStageVar
+          - script: echo $(myDeployStageVar) # no output
+            name: deployStageVar
