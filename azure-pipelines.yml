@@ -1,6 +1,9 @@
-trigger: none
-pr: none
+trigger:
+- main
 
+pool:
+  vmImage: 'ubuntu-latest'
+  
 stages:
 - stage: buildStage
   jobs:
