@@ -3,12 +3,11 @@ trigger:
 
 pool:
   vmImage: 'ubuntu-latest'
-  
+
 stages:
 - stage: buildStage
   jobs:
   - job: buildJob
-    pool: BUILD-LINUX
     steps:
     - script: echo "Hello Build"
     # https://learn.microsoft.com/en-us/azure/devops/pipelines/process/set-variables-scripts?view=azure-devops&tabs=bash#set-an-output-variable-for-use-in-future-stages
@@ -21,7 +20,6 @@ stages:
   condition: and(succeeded(), eq(dependencies.buildStage.outputs['buildJob.buildJobStep.buildJobVar'], 'fromBuildStage'))
   jobs:
   - deployment: integrationJob
-    pool: DEPLOY-TEST
     environment: nonprod
     variables:
       # you must use expressions to connect the variables on the job level before referencing in your script. Notice "stageDependencies" vs "dependencies"
@@ -44,7 +42,6 @@ stages:
   # dependsOn: integrationStage explicit dependsOn is not necessary, implicit works too (as long as your sure it comes after)
   jobs:
   - deployment: prodJob
-    pool: DEPLOY-PROD
     environment: nonprod
     variables:
       myBuildStageVar: $[stageDependencies.buildStage.buildJob.outputs['buildJobStep.buildJobVar']] # not available since its not a direct dependency
