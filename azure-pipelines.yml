@@ -44,8 +44,8 @@ stages:
   - deployment: prodJob
     environment: nonprod
     variables:
-      myBuildStageVar: $[stageDependencies.buildStage.buildJob.outputs['buildJobStep.buildJobVar']] # not available since its not a direct dependency
-      myDeployStageVar: $[stageDependencies.integrationStage.integrationJob.outputs['deployJobStep.deployJobVar']] # not available for some reason from deployment jobs? why?
+      myBuildStageVar: $[stageDependencies.buildStage.buildJob.outputs['buildStage.buildJobStep.buildJobVar']] # not available since its not a direct dependency
+      myDeployStageVar: $[stageDependencies.integrationStage.integrationJob.outputs['integrationStage.deployJobStep.deployJobVar']] # not available for some reason from deployment jobs? why?
     strategy:
       runOnce:
         deploy:
